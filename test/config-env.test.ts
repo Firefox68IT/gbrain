@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { describe, expect, test } from 'bun:test';
@@ -122,6 +122,54 @@ describe('loadConfig env database URL precedence', () => {
         { GBRAIN_HOME: home, GBRAIN_DATABASE_URL: undefined, DATABASE_URL: undefined },
         () => {
           expect(loadConfig()).toBeNull();
+        },
+      );
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test('reads OPENAI_API_KEY from GBRAIN_ENV_FILE when process env is unset', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'gbrain-config-env-'));
+    const envFile = join(home, 'gbrain.env');
+    try {
+      writeFileSync(envFile, 'OPENAI_API_KEY=sk-from-env-file\n');
+      await withEnv(
+        {
+          GBRAIN_HOME: home,
+          GBRAIN_ENV_FILE: envFile,
+          GBRAIN_DATABASE_URL: undefined,
+          DATABASE_URL: undefined,
+          OPENAI_API_KEY: undefined,
+        },
+        () => {
+          saveConfig({ engine: 'postgres' });
+          const cfg = loadConfig();
+          expect(cfg?.openai_api_key).toBe('sk-from-env-file');
+        },
+      );
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  test('process env beats GBRAIN_ENV_FILE for OPENAI_API_KEY', async () => {
+    const home = mkdtempSync(join(tmpdir(), 'gbrain-config-env-'));
+    const envFile = join(home, 'gbrain.env');
+    try {
+      writeFileSync(envFile, 'OPENAI_API_KEY=sk-from-env-file\n');
+      await withEnv(
+        {
+          GBRAIN_HOME: home,
+          GBRAIN_ENV_FILE: envFile,
+          GBRAIN_DATABASE_URL: undefined,
+          DATABASE_URL: undefined,
+          OPENAI_API_KEY: 'sk-from-process-env',
+        },
+        () => {
+          saveConfig({ engine: 'postgres' });
+          const cfg = loadConfig();
+          expect(cfg?.openai_api_key).toBe('sk-from-process-env');
         },
       );
     } finally {

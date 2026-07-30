@@ -195,6 +195,39 @@ describe('inferFrontmatter', () => {
     expect(result.tags).toContain('project');
   });
 
+  test('raw/claude-llm-tools: infers source with claude tags', () => {
+    const result = inferFrontmatter(
+      'raw/claude-llm-tools/2026-06-02-cowork-changed-june-2026.md',
+      '# Cowork Changed in June 2026\n\nNotes.',
+    );
+    expect(result.type).toBe('source');
+    expect(result.source).toBe('raw');
+    expect(result.tags).toEqual(expect.arrayContaining(['claude', 'llm-tools']));
+    expect(result.date).toBe('2026-06-02');
+    expect(result.title).toBe('Cowork Changed in June 2026');
+  });
+
+  test('raw/business-ai: infers source instead of catch-all note', () => {
+    const result = inferFrontmatter(
+      'raw/business-ai/2026-06-14-panucci-privacy-ai-act-professionisti.md',
+      '# Privacy AI Act per professionisti\n\nSummary.',
+    );
+    expect(result.type).toBe('source');
+    expect(result.tags).toContain('business-ai');
+    expect(result.date).toBe('2026-06-14');
+  });
+
+  test('skills/: infers guide with skill source tag', () => {
+    const result = inferFrontmatter(
+      'skills/corso-formativo-generator/references/pptx-patterns.md',
+      '# PPTX Patterns\n\nReference.',
+    );
+    expect(result.type).toBe('guide');
+    expect(result.source).toBe('skills');
+    expect(result.tags).toContain('skill');
+    expect(result.title).toBe('PPTX Patterns');
+  });
+
   test('companies/ directory: type company', () => {
     const result = inferFrontmatter(
       'companies/stripe.md',

@@ -194,6 +194,20 @@ export const DIRECTORY_RULES: DirectoryRule[] = [
   { pathPrefix: 'support/', type: 'source', source: 'docs', tags: ['support'], titleStrategy: 'heading' },
   { pathPrefix: 'notes/', type: 'note', titleStrategy: 'heading' },
 
+  // Raw capture buckets from operational ingestion. These are primary-source
+  // materials, so prefer `source` over the generic catch-all `note`.
+  { pathPrefix: 'raw/claude-llm-tools/', type: 'source', source: 'raw', tags: ['claude', 'llm-tools'], datePattern: 'filename', titleStrategy: 'heading' },
+  { pathPrefix: 'raw/business-ai/', type: 'source', source: 'raw', tags: ['business-ai'], datePattern: 'filename', titleStrategy: 'heading' },
+  { pathPrefix: 'raw/ai-research/', type: 'source', source: 'raw', tags: ['ai-research'], datePattern: 'filename', titleStrategy: 'heading' },
+  { pathPrefix: 'raw/knowledge-management/', type: 'source', source: 'raw', tags: ['knowledge-management'], datePattern: 'filename', titleStrategy: 'heading' },
+  { pathPrefix: 'raw/creators-people/', type: 'source', source: 'raw', tags: ['creators-people'], datePattern: 'filename', titleStrategy: 'heading' },
+  { pathPrefix: 'raw/assets/ignored/', type: 'source', source: 'raw', tags: ['asset', 'ignored'], datePattern: 'filename', titleStrategy: 'heading' },
+  { pathPrefix: 'raw/assets/', type: 'source', source: 'raw', tags: ['asset'], datePattern: 'filename', titleStrategy: 'heading' },
+  { pathPrefix: 'raw/', type: 'source', source: 'raw', datePattern: 'filename', titleStrategy: 'heading' },
+
+  // Skill repositories and helper material.
+  { pathPrefix: 'skills/', type: 'guide', source: 'skills', tags: ['skill'], titleStrategy: 'heading' },
+
   // Personal sections
   {
     pathPrefix: 'personal/therapy/',

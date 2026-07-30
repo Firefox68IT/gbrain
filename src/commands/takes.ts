@@ -652,6 +652,11 @@ async function cmdExtract(engine: BrainEngine, rest: string[]): Promise<void> {
     process.exit(1);
   }
 
+  const { loadConfig } = await import('../core/config.ts');
+  const { buildGatewayConfig } = await import('../core/ai/build-gateway-config.ts');
+  const { configureGateway } = await import('../core/ai/gateway.ts');
+  const cfg = loadConfig();
+  if (cfg) configureGateway(buildGatewayConfig(cfg));
   const { extractTakesFromPages } = await import('../core/extract-takes-from-pages.ts');
   const result = await extractTakesFromPages(engine, {
     bootstrapEnabled: true,
@@ -665,8 +670,15 @@ async function cmdExtract(engine: BrainEngine, rest: string[]): Promise<void> {
     process.stderr.write(`[takes extract] chat gateway unavailable (no API key configured).\n`);
     process.exit(2);
   }
+  if (result.chat_failures > 0) {
+    process.stderr.write(`[takes extract] ${result.chat_failures} page(s) failed chat extraction using ${result.model_used}.\n`);
+  }
+  if (result.write_failures > 0) {
+    process.stderr.write(`[takes extract] ${result.write_failures} page(s) produced claims but failed DB write.\n`);
+  }
   process.stdout.write(
     `takes extract --from-pages: ${result.claims_extracted} claim(s) from ${result.pages_scanned} page(s)` +
+    (result.pages_with_claims > 0 ? `; pages with claims=${result.pages_with_claims}` : '') +
     (dryRun ? ' (dry-run)' : '') + '\n',
   );
 }

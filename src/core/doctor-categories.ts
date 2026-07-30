@@ -194,6 +194,16 @@ export const META_CHECK_NAMES: ReadonlySet<string> = new Set([
  * Stderr warn-once gate for unknown check names. Exported as a test seam so
  * the categorizer test can re-trigger warns.
  */
+const DYNAMIC_META_CHECK_NAMES: ReadonlySet<string> = new Set([
+  'dangling_aliases',
+  'embed_staleness',
+  'entity_link_coverage',
+  'pack_upgrade_available',
+  'takes_count',
+  'timeline_coverage',
+  'type_proliferation',
+]);
+
 const _warnedUnknown = new Set<string>();
 export function _resetUnknownCheckWarningsForTest(): void {
   _warnedUnknown.clear();
@@ -210,6 +220,7 @@ export function categorizeCheck(name: string): CheckCategory {
   if (SKILL_CHECK_NAMES.has(name)) return 'skill';
   if (OPS_CHECK_NAMES.has(name)) return 'ops';
   if (META_CHECK_NAMES.has(name)) return 'meta';
+  if (DYNAMIC_META_CHECK_NAMES.has(name)) return 'meta';
   if (!_warnedUnknown.has(name)) {
     _warnedUnknown.add(name);
     process.stderr.write(

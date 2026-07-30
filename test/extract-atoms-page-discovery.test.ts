@@ -407,6 +407,33 @@ describe('v0.41.2.1: runPhaseExtractAtoms — dual-source merge + idempotency', 
     expect(result.details?.atoms_extracted).toBe(2);
   });
 
+
+  test('page with zero extracted atoms is marked attempted and leaves backlog only on content change', async () => {
+    await seedPage({ slug: 'meeting/zero-atoms', type: 'meeting', content_hash: 'zeroatomshash1234567890' });
+    const result = await runPhaseExtractAtoms(engine, {
+      _transcripts: [],
+      _chat: stubChat('[]'),
+    });
+    expect(result.details?.atoms_extracted).toBe(0);
+    expect(result.details?.pages_processed).toBe(1);
+    expect(result.details?.zero_atom_pages_marked).toBe(1);
+
+    const rows = await engine.executeRaw<{ frontmatter: Record<string, unknown> }>(
+      `SELECT frontmatter FROM pages WHERE slug = 'meeting/zero-atoms' AND source_id = 'default'`,
+    );
+    expect(rows[0].frontmatter.extract_atoms_attempted_source_hash).toBe('zeroatomshash123');
+
+    const discovered2 = await discoverExtractablePages(engine, 'default');
+    expect(discovered2.map((d) => d.slug)).toEqual([]);
+
+    await engine.executeRaw(
+      `UPDATE pages SET content_hash = $1 WHERE slug = 'meeting/zero-atoms' AND source_id = 'default'`,
+      ['changedhash1234567890'],
+    );
+    const discovered3 = await discoverExtractablePages(engine, 'default');
+    expect(discovered3.map((d) => d.slug)).toEqual(['meeting/zero-atoms']);
+  });
+
   test('dry-run skips putPage for atoms', async () => {
     const chat = stubChat(`[{"title":"x","atom_type":"insight","body":"b"}]`);
     const result = await runPhaseExtractAtoms(engine, {

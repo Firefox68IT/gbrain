@@ -135,6 +135,22 @@ describe('runExtractAtomsDrain (issue #1678)', () => {
     expect(result.stopped).toBe('drained');
   });
 
+  it('stops with failures when a batch makes no progress because every item failed', async () => {
+    let batches = 0;
+    const result = await runExtractAtomsDrain(
+      {
+        withLock: passThroughLock,
+        countRemaining: async () => 5,
+        runBatch: async () => { batches++; return { extracted: 0, skipped: 0, failures: 5 }; },
+        now: () => 0,
+      },
+      { windowMs: 1_000_000 },
+    );
+    expect(result.stopped).toBe('failures');
+    expect(batches).toBe(1);
+    expect(result.remaining).toBe(5);
+  });
+
   it('propagates a busy-lock error (caller reports cycle_already_running)', async () => {
     class FakeBusy extends Error {}
     await expect(
