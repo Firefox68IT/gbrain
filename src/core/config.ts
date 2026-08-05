@@ -41,6 +41,51 @@ export interface GBrainConfig {
    * merge → buildGatewayConfig env dict → recipe reads ZEROENTROPY_API_KEY.
    */
   zeroentropy_api_key?: string;
+   /**
+   * OpenRouter API key. File-plane slot so `gbrain config set
+   * openrouter_api_key X` (or config.json) reaches the openrouter recipe:
+   * file plane → loadConfig env merge → buildGatewayConfig env dict → recipe
+   * reads OPENROUTER_API_KEY.
+   */
+  openrouter_api_key?: string;
+  /**
+   * Voyage AI API key (#2662). File-plane slot so `~/.gbrain/config.json`'s
+   * `voyage_api_key` reaches the voyage recipe the same way
+   * zeroentropy_api_key/openrouter_api_key do: file plane →
+   * buildGatewayConfig env dict → recipe reads VOYAGE_API_KEY. Before this,
+   * launchd/daemon/MCP contexts without a process-env export silently
+   * failed multimodal embeds despite config.json looking complete.
+   *
+   * NOTE (scoped to what this fix covers): `gbrain config set
+   * voyage_api_key X` writes the DB plane, which `loadConfigWithEngine()`
+   * does NOT merge for any `*_api_key` field (zeroentropy_api_key /
+   * openrouter_api_key have the same pre-existing gap) — only the
+   * config.json file-plane route is wired through today.
+   */
+  voyage_api_key?: string;
+  /**
+   * Alibaba DashScope API key (#3500). File-plane slot so config.json's
+   * `dashscope_api_key` reaches the dashscope / dashscope-rerank recipes:
+   * file plane → buildGatewayConfig env dict → recipe reads
+   * DASHSCOPE_API_KEY. Same fold pattern (and same DB-plane caveat) as
+   * voyage_api_key above.
+   */
+  dashscope_api_key?: string;
+  /**
+   * Google Gemini API key (#3500). File-plane slot folded into the gateway
+   * env as GOOGLE_GENERATIVE_AI_API_KEY (the name the google recipe reads).
+   * buildGatewayConfig also accepts process-env GEMINI_API_KEY — the name
+   * Google's own docs/SDKs use — as an alias for
+   * GOOGLE_GENERATIVE_AI_API_KEY. Same fold pattern (and same DB-plane
+   * caveat) as voyage_api_key above.
+   */
+  google_api_key?: string;
+  /** Azure OpenAI (keyless/Entra). Non-secret endpoint + deployment + Entra opt-in,
+   * folded into the gateway env so the azure-openai recipe works in any shell.
+   * The bearer token is minted at request time via `az` — no secret stored here. */
+  azure_openai_endpoint?: string;
+  azure_openai_deployment?: string;
+  azure_openai_use_entra?: string;
   /** AI gateway config (v0.14+). v0.36+ default: "zeroentropyai:zembed-1" / 1280 / "anthropic:claude-haiku-4-5-20251001". */
   embedding_model?: string;
   embedding_dimensions?: number;
@@ -858,6 +903,14 @@ export const KNOWN_CONFIG_KEYS: readonly string[] = [
   'database_path',
   'openai_api_key',
   'anthropic_api_key',
+   'zeroentropy_api_key',
+  'openrouter_api_key',
+  'voyage_api_key',
+  'dashscope_api_key',
+  'google_api_key',
+  'azure_openai_endpoint',
+  'azure_openai_deployment',
+  'azure_openai_use_entra',
   'embedding_model',
   'embedding_dimensions',
   'embedding_disabled',
@@ -910,6 +963,7 @@ export const KNOWN_CONFIG_KEYS: readonly string[] = [
   'models.think',
   'models.subagent',
   'models.expansion',
+  'models.contextual_synopsis',
   'models.chat',
   'models.eval.longmemeval',
   'facts.extraction_model',
