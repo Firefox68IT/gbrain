@@ -400,6 +400,16 @@ export function isThinClient(config: GBrainConfig | null): boolean {
 }
 
 /**
+ * Shared config-bool parser used by doctor/runtime checks that accept the
+ * documented "on" spellings written via `gbrain config set`.
+ */
+export function isConfigTruthy(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  const normalized = value.trim().toLowerCase();
+  return normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "on";
+}
+
+/**
  * Load config with credential precedence: env vars > config file.
  * Plugin config is handled by the plugin runtime injecting env vars.
  */

@@ -565,7 +565,7 @@ export async function runPhaseExtractAtoms(
   let estimatedSpendUsd = 0;
   let budgetExhausted = false;
   let extractModel = DEFAULT_EXTRACT_ATOMS_MODEL;
-  let budgetCap = DEFAULT_BUDGET_USD;
+  let budgetCap: number | undefined = DEFAULT_BUDGET_USD;
   try {
     const configuredModel = await engine.getConfig('models.dream.extract_atoms');
     if (configuredModel) extractModel = configuredModel;

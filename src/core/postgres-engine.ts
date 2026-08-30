@@ -90,7 +90,7 @@ import { buildSourceFactorCase, buildHardExcludeClause, buildVisibilityClause, b
 import { unverifiedExtractionFragment } from './extraction-review.ts';
 import { DEFAULT_EMBEDDING_MODEL, DEFAULT_EMBEDDING_DIMENSIONS } from './ai/defaults.ts';
 import { DELETE_BATCH_SIZE } from './engine-constants.ts';
-import { SOURCE_CONFIG_OBJECT_SQL } from './source-config-sql.ts';
+import { normalizeSourceConfig } from './sources-load.ts';
 import { shouldExcludeFromOrphanReporting, loadOrphanPolicyOverrides } from './orphan-policy.ts';
 import { LINK_EXTRACTOR_VERSION_TS } from './link-extraction.ts';
 
@@ -1428,47 +1428,22 @@ export class PostgresEngine implements BrainEngine {
   }
 
   async updateSourceConfig(sourceId: string, patch: Record<string, unknown>): Promise<boolean> {
-    // Atomic single-statement merge. The previous read-then-write form dropped
-    // concurrent updates: two callers patching different keys could both read
-    // the same old config and the later `SET config = ...` clobbered the
-    // earlier patch. These keys are written by background cycle/autopilot
-    // paths, so the merge must happen inside the UPDATE (parity with
-    // pglite-engine.updateSourceConfig, which already uses JSONB `||`).
-    //
-    // The shared SQL coercion normalizes historical bad shapes inline (so
-    // `config` is re-read against the row-locked latest version — a detached
-    // read/normalize/write cycle would reintroduce the lost-update race under
-    // READ COMMITTED): older code paths
-    // could store config as a JSONB string (double-encoded) or as a JSONB array
-    // of patch objects. We coerce those to a flat object before the `||` merge
-    // so doctor and source routing keep getting flat keys.
-    //
-    // String branch guard: a JSONB string whose inner text is NOT itself valid
-    // JSON (one of the historical bad shapes this path repairs) would make the
-    // bare `::jsonb` cast raise `invalid input syntax for type json`, failing
-    // the whole UPDATE. Postgres has no `try_cast`, so we gate the cast with
-    // the SQL `IS JSON` predicate (Postgres 16+): parseable inner text is
-    // double-encoded config and gets parsed; unparseable text falls back to `{}`.
-    // The guard keeps the merge a single atomic statement (no extra round-trip,
-    // no lost-update race).
-    //
-    // MUST use sql.json(patch) inside the template tag — postgres-js's
-    // positional executeRaw + `$1::jsonb` cast DOUBLE-ENCODES the
-    // JSON.stringify'd string, producing a JSONB STRING shape instead
-    // of OBJECT. `||` between JSONB object + JSONB string yields a
-    // JSONB ARRAY (concat semantics for non-matching types), which
-    // wipes every existing config key. sql.json(...) inside the
-    // template tag is the canonical safe path — same pattern as
-    // putPage + submitJob elsewhere in this file. Empirically verified
-    // produces jsonb_typeof = 'object'.
     const sql = this.sql;
-    const result = await sql`
-      UPDATE sources
-         SET config = ${sql.unsafe(SOURCE_CONFIG_OBJECT_SQL)}
-           || ${sql.json(patch as Parameters<typeof sql.json>[0])}
-       WHERE id = ${sourceId}
-    `;
-    return (result.count ?? 0) > 0;
+    return await sql.begin(async (tx) => {
+      const rows = await tx<Array<{ config: unknown }>>`
+        SELECT config FROM sources WHERE id = ${sourceId} FOR UPDATE
+      `;
+      if (rows.length === 0) return false;
+      const current = normalizeSourceConfig(rows[0].config);
+      const merged = { ...current, ...patch };
+      const mergedJson = JSON.stringify(merged);
+      const result = await tx`
+        UPDATE sources
+           SET config = ${mergedJson}::jsonb
+         WHERE id = ${sourceId}
+      `;
+      return (result.count ?? 0) > 0;
+    });
   }
 
   // v0.37.0 — domain-bank engine methods (D14 + D5 + D10).
